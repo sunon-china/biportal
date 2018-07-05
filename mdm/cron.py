@@ -30,7 +30,7 @@ class Pxb():
         header = {'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'}
 
 
-        accessToken = self.getPxbAccessToken(accessTokenUrl, auth, header)
+        accessToken = self.getAccessToken(accessTokenUrl, auth, header)
         if (accessToken['err'] == 0):
             header['ACCESS-TOKEN'] = accessToken['data']
             rootCompany = self.getRootCompany()
@@ -49,7 +49,7 @@ class Pxb():
         
 
     #Get 91PXB access token    
-    def getPxbAccessToken(self, url, post, header):
+    def getAccessToken(self, url, post, header):
         return self.utils.apiCall(url, post, header)
 
     #Post company to 91PXB
@@ -83,8 +83,9 @@ class Utils():
         elif (jsonType == 'decode'):
             return json.loads(data)
         else:
-            return false
+            return False
 
 def pxb():
     pxb = Pxb()
     pxb.main()
+
