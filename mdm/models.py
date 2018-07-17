@@ -3,7 +3,7 @@ import django.utils
 
 # Create your models here.
 class Company(models.Model):
-    key = models.CharField(max_length=20, default='')
+    key = models.CharField(max_length=20, unique = True, default='')
     code = models.CharField(max_length=40)
     name = models.CharField(max_length=200)
     short_name = models.CharField(max_length=200, blank=True, null=True)
@@ -14,13 +14,15 @@ class Company(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField(default=django.utils.timezone.now)
+    parent_company_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_company_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name 
     class Meta:
         ordering = ('name',)
 
 class Department(models.Model):
-    key = models.CharField(max_length=20)
+    key = models.CharField(max_length=20, unique = True)
+    company_key = models.CharField(max_length=20, default = '')
     code = models.CharField(max_length=40)
     name = models.CharField(max_length=200)
     short_name = models.CharField(max_length=200, blank=True, null=True)
@@ -34,6 +36,7 @@ class Department(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+    parent_dept_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_dept_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name
     
@@ -41,7 +44,7 @@ class Department(models.Model):
         ordering = ('name',)
 		
 class Position(models.Model):
-    key = models.CharField(max_length=20)
+    key = models.CharField(max_length=20, unique=True)
     code = models.CharField(max_length=40)
     name = models.CharField(max_length=200)
     dept_key = models.CharField(max_length=200)
@@ -63,7 +66,7 @@ class Position(models.Model):
         ordering = ('name',)
 	
 class Employee(models.Model):
-    key = models.CharField(max_length=20)
+    key = models.CharField(max_length=20, unique=True)
     code = models.CharField(max_length=20)
     name = models.CharField(max_length=200)
     sex = models.IntegerField(default=1)
@@ -134,7 +137,7 @@ class Job_Data(models.Model):
     dept_l5 = models.CharField(max_length=200,blank=True, null=True)
     dept_l6 = models.CharField(max_length=200,blank=True, null=True)
     pos_series_key = models.CharField(max_length=20,blank=True, null=True)
-    parent_pos_key = models.CharField(max_length=20,blank=True, null=True)
+    pos_key = models.CharField(max_length=20)
     job_key = models.CharField(max_length=20,blank=True, null=True)
     job_grade_key = models.CharField(max_length=20,blank=True, null=True)
     job_rank_key = models.CharField(max_length=20,blank=True, null=True)
@@ -156,6 +159,10 @@ class Job_Data(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+
+    empl_key = models.ForeignKey('Employee', on_delete=models.CASCADE, default = '', db_column = 'empl_key', to_field = 'key', related_name = 'empl')
+    dept_key = models.ForeignKey('Department', on_delete=models.CASCADE, default = '', db_column = 'dept_key', to_field = 'key', related_name = 'dept')
+    pos_key = models.ForeignKey('Position', on_delete=models.CASCADE, default = '', db_column = 'pos_key', to_field = 'key', related_name = 'pos')
     def __str__(self):
         return self.company_key
     
