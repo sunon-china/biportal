@@ -12,6 +12,7 @@ ChangeLog
 2018/07/10 Feng ZHAO Synchronize root company 
 2018/07/11 Feng ZHAO Synchronize organizations
 2018/07/12 Feng ZHAO Synchronize students 
+2018/07/18 Dong CHEN add class Maycur class CxOracle
 '''
 
 class Pxb():
@@ -90,6 +91,8 @@ class Pxb():
                 print(str(updateReturn['err']) + ' ' + updateReturn['data'])
             '''
 
+        #Get access token error
+        else:
             print(str(accessToken['err']) + ' ' + accessToken['data'])
         
 
@@ -125,6 +128,93 @@ class Pxb():
     def synchronizeStudents(self, url, post, header):
         return self.utils.apiCall(url, post, header)
 
+
+
+class Maycur():
+
+    def __init__(self):
+        self.utils = Utils()
+        self.cxoracle = CxOracle('cbs','sunon$2018','172.16.59.182',1521,'sunon')
+        
+    #从每刻获取数据存入CBS中间表
+    def main(self):
+        import time
+        import cx_Oracle
+        
+        accessTokenUrl = 'https://uat.maycur.com/api/openapi/auth/login'
+        PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
+        appCode = 'UI180315SUNO100'
+        secret = 'Lqecp6GGSajUxnNTMEeA966bxVXym6UzjTp26zccMMRBgBrAX4m4s9anpfuJkVkz'
+        timestamp = str(int(time.time()*1000))
+        #加密
+        res = self.getSh256(secret +':'+ appCode +':'+ timestamp)
+        auth = {'appCode': appCode,'timestamp':timestamp, 'secret': res}
+        header = {'content-type':'application/json'}
+    
+        accessToken = self.getAccessToken(accessTokenUrl, auth, header)
+
+        if (accessToken['code'] == 'ACK'):
+            sql = "select max(cast(erp_payment_id as int )) as seq from authorization_to_payment"
+            mm = self.cxoracle.Query(sql)
+            sequence = mm[0][0]
+            if sequence == None:
+                sequence = -1
+            data = accessToken.get('data')
+            header['entCode'] = data.get('entCode')
+            header['tokenId'] = data.get('tokenId')
+            data = {"timestamp": timestamp, "data": {"sequence": sequence}}
+            
+            result = self.getPayment(PaymentUrl, data, header)
+            if (result['code'] == 'ACK'):
+
+                Paymentdata = result.get('data')
+                Paymentlist = []
+
+                for i in range(0, len(Paymentdata)):
+
+                    dict = Paymentdata[i]
+                    sequence = dict['sequence']
+                    payeeBankCode = dict['payeeBankCode']
+                    payeeBankCardNO = dict['payeeBankCardNO']
+                    paidAmount = dict['paidAmount']
+                    if payeeBankCode == None or payeeBankCardNO == None:
+                        continue
+                    CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,paidAmount)
+                    list = (sequence,'Available','202','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE)
+                    Paymentlist.append(list)
+                insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10)"
+                self.cxoracle.Insert(insertsql,Paymentlist)
+            else:
+                print("请求失败")
+            print("######################################################")
+        else:
+            print(accessToken['responseCode'] + accessToken['errorMessage'])
+        
+
+    def postMaycur(self):
+        pass
+
+
+    def getAccessToken(self, url, post, header):
+        return self.utils.apiCall(url, post, header)
+
+    def getPayment(self, url, data, header):
+        return self.utils.apiCall(url, data, header)
+
+    #获取check_code
+    def getCheckcode(self,sequence,record_status,deposit_accounts,amount):
+        #str = code+record_status+deposit_accounts+str(amount)
+        s = 0
+        for i in str(sequence)+record_status+deposit_accounts+str(amount):
+            s = s +ord(i)
+        s = s + 39*6
+        CHECK_CODE = ((s % 999) * (s % 2184)) % 9999
+        return CHECK_CODE
+
+    def getSh256(self,res):
+        return self.utils.Sha256(res)
+
+
 class Utils():
     
     #Using python urllib to get or post 
@@ -147,9 +237,80 @@ class Utils():
         else:
             return False
 
+    #SHA256加密
+    def Sha256(self,res):
+        import hashlib
+        sha256 = hashlib.sha256()
+        sha256.update(res.encode('utf-8'))
+        result = sha256.hexdigest()
+        return result
+
+import cx_Oracle
+class CxOracle():
+
+
+    def __init__(self ,user, pwd,host,port,service_name ):
+        self._user = user
+        self._pwd = pwd
+        self._tns = cx_Oracle.makedsn(host,port,service_name)
+        self._conn = None
+        self._ReConnect()
+    def _ReConnect(self ):
+        if not self._conn :
+            self._conn = cx_Oracle.connect (self._user, self._pwd,self._tns)
+        else:
+            pass
+    def __del__(self ):
+        if self. _conn:
+            self ._conn. close()
+            self ._conn = None
+    def _NewCursor(self ):
+        cur = self. _conn.cursor ()
+        if cur:
+            return cur
+        else:
+            print ("#Error# Get New Cursor Failed.")
+        return None
+    def _DelCursor(self , cur):
+        if cur:
+            cur .close()
+    def Query(self , sql):
+        rt = []
+        cur = self. _NewCursor()
+        if not cur:
+            return rt
+        cur .execute(sql)
+        rt = cur.fetchall()
+        self ._DelCursor(cur)
+        return rt
+  # 更新
+    def Exec(self ,sql):
+        rt = None
+        cur = self. _NewCursor()
+        if not cur:
+            return rt
+        rt = cur. execute(sql )
+        self._conn.commit()
+        self ._DelCursor(cur)
+        return rt 
+    #批量插入
+    def Insert(self ,sql,param):
+        rt = None
+        cur = self. _NewCursor()
+        if not cur:
+            return rt
+        rt = cur. executemany(sql,param)
+        self._conn.commit()
+        self ._DelCursor(cur)
+        return rt
+
+'''
 def pxb():
     pxb = Pxb()
     pxb.main()
-
+'''
+def maycur():
+    maycur = Maycur()
+    maycur.main()
 
 
