@@ -12,9 +12,8 @@ ChangeLog
 2018/07/10 Feng ZHAO Synchronize root company 
 2018/07/11 Feng ZHAO Synchronize organizations
 2018/07/12 Feng ZHAO Synchronize students 
-test
-test 2
-test 3
+<<<<<<< HEAD
+>>>>>>> c429d67cd68f0d885bca9f3d4ccbba4e21f2e5ed
 '''
 
 class Pxb():
