@@ -15,8 +15,6 @@ ChangeLog
 test
 test 2
 test 3
-test ljw
-test ljw1
 '''
 
 class Pxb():
@@ -95,8 +93,6 @@ class Pxb():
                 print(str(updateReturn['err']) + ' ' + updateReturn['data'])
             '''
 
-        #Get access token error
-        else:
             print(str(accessToken['err']) + ' ' + accessToken['data'])
         
 
@@ -157,4 +153,6 @@ class Utils():
 def pxb():
     pxb = Pxb()
     pxb.main()
+
+
 
