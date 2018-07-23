@@ -201,7 +201,7 @@ class Maycur():
  
         postMaycurUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/update'
         
-        sequence = 31
+        #sequence = 31
         DEPOSIT_ACCOUNTS = "12345678978991"
         timestamp = str(int(time.time()*1000))
         RECORD_STATUS = "PAY_SUCCESS"
@@ -237,7 +237,7 @@ class Maycur():
         if sequence == None:
             sequence = -1
         #header = self.getHeader(timestamp)
-        data = {"timestamp": timestamp, "data": {"sequence": -1}}
+        data = {"timestamp": timestamp, "data": {"sequence": sequence}}
         result = self.getPayment(PaymentUrl, data, header)
         if (result['code'] == 'ACK'):
 
@@ -251,16 +251,20 @@ class Maycur():
                 payeeBankCardNO = dict['payeeBankCardNO']
                 paidAmount = dict['paidAmount']
                 Amount = [str(paidAmount),int(paidAmount)][int(paidAmount)==paidAmount]
-                #payerBankAccount = dict['payerBankAccount']
-                payerBankAccount = '19082301040025838'
+                payerBankAccount = dict['payerBankAccount']
+                #payerBankAccount = '19082301040025838'
+                payeeBankBranchNO = dict['payeeBankBranchNO']
                 payeeName = dict['payeeName']
-                if payeeBankCode == None or payeeBankCardNO == None:
+                acceptCcy = dict['acceptCcy']
+                if acceptCcy == 'CNY':
+                    acceptCcy = '10'
+                if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
                     continue
                 CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,Amount,payerBankAccount)
-                list = (sequence,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE,payerBankAccount,payeeName)
+                list = (sequence,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO)
                 Paymentlist.append(list)
             #print(Paymentlist)
-            insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE,PAYMENT_ACCOUNTS)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12)"
+            insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE,PAYMENT_ACCOUNTS,DEPOSIT_ACCOUNTS_NAME,PAYMENT_CLTNBR,CURRENCY_TYPE,UNION_BANK_NUMBER)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15)"
             self.cxoracle.Insert(insertsql,Paymentlist)
             print("######################################################")
         else:
@@ -283,20 +287,26 @@ class Maycur():
             Paymentdata = result.get('data')
             Paymentlist = []
             dict = Paymentdata[0]
-            #print(Paymentdata)
             sequence = dict['sequence']
             #self.getCountseq(sequence)
             sequence = str(sequence)+'_1'
-            #print(sequence)
             payeeBankCode = dict['payeeBankCode']
             payeeBankCardNO = dict['payeeBankCardNO']
             paidAmount = dict['paidAmount']
-            payerBankAccount = '19082301040025838'
-            CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,paidAmount)
-            list = (sequence,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE,payerBankAccount)
+            Amount = [str(paidAmount),int(paidAmount)][int(paidAmount)==paidAmount]
+            #payerBankAccount = '19082301040025838'
+            payerBankAccount = dict['payerBankAccount']
+            payeeBankBranchNO = dict['payeeBankBranchNO']
+            payeeName = dict['payeeName']
+            acceptCcy = dict['acceptCcy']
+            if acceptCcy == 'CNY':
+                acceptCcy = '10'
+            if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
+                continue
+            CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,Amount,payerBankAccount)
+            list = (sequence,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO)
             Paymentlist.append(list)
-            #print(Paymentlist)
-            insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE,PAYMENT_ACCOUNTS)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11)"
+            insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE,PAYMENT_ACCOUNTS,DEPOSIT_ACCOUNTS_NAME,PAYMENT_CLTNBR,CURRENCY_TYPE,UNION_BANK_NUMBER)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15)"
             self.cxoracle.Insert(insertsql,Paymentlist)
 
     def getAccessToken(self, url, post, header):
@@ -308,17 +318,16 @@ class Maycur():
 
     #计算校验码
     def getCheckcode(self,sequence,record_status,deposit_accounts,amount,payerBankAccount):
-        #str = code+record_status+deposit_accounts+str(amount)
         s = 0
-        for i in str(sequence)+record_status+deposit_accounts+str(amount)+payerBankAccount:
+        if payerBankAccount == None:
+            string = str(sequence)+record_status+deposit_accounts+str(amount)
+        else:
+            string = str(sequence)+record_status+deposit_accounts+str(amount)+payerBankAccount  
+        for i in string:
         #for i in str(0)+'Available'+'127876169497'+str(50.0)+'19082301040025838':
-            #print(ord(i))
             s = s +ord(i)
-            #print(s)
         s = s + 39*6
-        print(s)
         CHECK_CODE = ((s % 999) * (s % 2184)) % 9999
-        print(CHECK_CODE)
         return CHECK_CODE
     def getSh256(self,res):
         return self.utils.Sha256(res)
@@ -329,7 +338,8 @@ class Maycur():
         sql = "select count(1) from AUTHORIZATION_TO_PAYMENT where erp_payment_id like '"+seq+"'    "
         count = self.cxoracle.Query(sql)
         #count = count[0]
-        print(count)
+        #print(count)
+        return count
 
 
 class Utils():
