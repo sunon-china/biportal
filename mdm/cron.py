@@ -138,87 +138,83 @@ class Maycur():
         
     def main(self):
         import time
-        timestamp = str(int(time.time()*1000))
-        header = self.getHeader(timestamp)
-        self.getPaymentall(timestamp,header)
-        self.getPaymentfailed(timestamp,header)
-        '''
-        accessTokenUrl = 'https://uat.maycur.com/api/openapi/auth/login'
-        PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
-        appCode = 'UI180315SUNO100'
-        secret = 'Lqecp6GGSajUxnNTMEeA966bxVXym6UzjTp26zccMMRBgBrAX4m4s9anpfuJkVkz'
-        timestamp = str(int(time.time()*1000))
-        #加密
-        res = self.getSh256(secret +':'+ appCode +':'+ timestamp)
-        auth = {'appCode': appCode,'timestamp':timestamp, 'secret': res}
-        header = {'content-type':'application/json'}
-        
-        accessToken = self.getAccessToken(accessTokenUrl, auth, header)
-        '''
-        '''
-        if (accessToken['code'] == 'ACK'):
-            sql = "select max(cast(erp_payment_id as int )) as seq from authorization_to_payment"
-            mm = self.cxoracle.Query(sql)
-            sequence = mm[0][0]
-            if sequence == None:
-                sequence = -1
-            data = accessToken.get('data')
-            header['entCode'] = data.get('entCode')
-            header['tokenId'] = data.get('tokenId')
-            data = {"timestamp": timestamp, "data": {"sequence": sequence}}
-            result = self.getPayment(PaymentUrl, data, header)
-            #print(result)
-            if (result['code'] == 'ACK'):
+        timeStamp = str(int(time.time()*1000))
+        header = self.getHeader(timeStamp)
+        self.getPaymentall(timeStamp,header)        #获取每刻已导出支付流水至cbs中间表
 
-                Paymentdata = result.get('data')
-                Paymentlist = []
-                for i in range(0, len(Paymentdata)):
-                    dict = Paymentdata[i]
-                    print(dict)
-                    sequence = dict['sequence']
-                    payeeBankCode = dict['payeeBankCode']
-                    payeeBankCardNO = dict['payeeBankCardNO']
-                    paidAmount = dict['paidAmount']
-                    if payeeBankCode == None or payeeBankCardNO == None:
-                        continue
-                    CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,paidAmount)
-                    list = (sequence,'Available','202','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE)
-                    Paymentlist.append(list)
-                
-                insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10)"
-                self.cxoracle.Insert(insertsql,Paymentlist)
-            else:
-                print("请求失败")
-            print("######################################################")
-        else:
-            print(accessToken['responseCode'] + accessToken['errorMessage'])
-        test = self.postMaycur(header)
-        print(test)
-        '''
-        
-    def postMaycur(self,header):
+        #self.getPaymentfailed(timeStamp,header)
+        self.postPaymentstatus(header)              #回写支付状态给每刻
+
+    #回写每刻支付成功或支付失败状态
+    def postPaymentstatus(self,header):
         import time
  
         postMaycurUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/update'
-        
-        #sequence = 31
-        DEPOSIT_ACCOUNTS = "12345678978991"
-        timestamp = str(int(time.time()*1000))
-        RECORD_STATUS = "PAY_SUCCESS"
-        data = {"timestamp": timestamp, "data": [{"sequence":sequence,"paidDate":timestamp,"payerBankAccount":DEPOSIT_ACCOUNTS,"status":RECORD_STATUS}]}
-        #print(data)
-        result = self.getPayment(postMaycurUrl, data, header)
-        return  result
+   
+        cbsData = self.getStatus1()
+        #print(cbsData)
+
+        if cbsData == [] :
+            print("暂无数据需要回写每刻")
+        else:
+            for i in range(0, len(cbsData)):
+                dataList = []
+                paymentAccounts = cbsData[i][2]
+                if paymentAccounts == None:
+                    continue
+                recordStatus = cbsData[i][1]
+                PayDate = cbsData[i][3]
+                errorMsg = cbsData[i][4]
+                sequence = cbsData[i][5]
+                erpPaymentId = cbsData[i][0]
+                if recordStatus != 'Success':
+                    recordStatus = 'PAY_FAIL'
+                timeArray = time.strptime(PayDate, "%Y-%m-%d %H:%M:%S")
+                #支付时间的时间戳:
+                timeStamp = int(time.mktime(timeArray)*1000)
+                list = ({"sequence":sequence,"paidDate":timeStamp,"payerBankAccount":paymentAccounts,"status":recordStatus,"errorMsg":errorMsg})
+                #更新CBS中间表erp_comment1字段为"2"
+
+                dataList.append(list)
+                #当前时间的时间戳CBS_EXPORT_FAILED
+                nowtimeStamp = int(time.time()*1000)
+                data = {"timeStamp": nowtimeStamp, "data": dataList}
+                result = self.postPayment(postMaycurUrl, data, header)
+                if result['code'] == 'NACK':
+                    continue
+                self.updatePaymentFlag(erpPaymentId,'2')
+                #print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+
+    #post已导出状态给每刻
+    def postExportstatus(self,timeStamp,header):
+
+        postMaycurUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/update'
+        #获取每刻回写到CBS的流水数据
+        cbsData = self.getStatus0()
+        dataList = []
+        if cbsData == [] :
+            print("无新增数据")
+        else:
+            for i in range(0, len(cbsData)):
+                sequence = cbsData[i][5]          #流水号
+                erp_payment_id = cbsData[i][0]    #唯一编号
+                list = ({"sequence":sequence,"status":'CBS_EXPORTED'})
+                dataList.append(list)
+                self.updatePaymentFlag(erp_payment_id,'1')
+            data = {"timestamp": timeStamp, "data": dataList}
+            result = self.postPayment(postMaycurUrl, data, header)
+
+
 
     #获取带code、tokenid的header
-    def getHeader(self,timestamp):
+    def getHeader(self,timeStamp):
         accessTokenUrl = 'https://uat.maycur.com/api/openapi/auth/login'
         #PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
         appCode = 'UI180315SUNO100'
         secret = 'Lqecp6GGSajUxnNTMEeA966bxVXym6UzjTp26zccMMRBgBrAX4m4s9anpfuJkVkz'
         #加密
-        res = self.getSh256(secret +':'+ appCode +':'+ timestamp)
-        auth = {'appCode': appCode,'timestamp':timestamp, 'secret': res}
+        res = self.getSh256(secret +':'+ appCode +':'+ timeStamp)
+        auth = {'appCode': appCode,'timestamp':timeStamp, 'secret': res}
         header = {'content-type':'application/json'}
         accessToken = self.getAccessToken(accessTokenUrl, auth, header)
         if (accessToken['code'] == 'ACK'):
@@ -227,26 +223,31 @@ class Maycur():
             header['tokenId'] = data.get('tokenId')
         return header
 
-    #获取max(sequence）值之后的支付流水
-    def getPaymentall(self,timestamp,header):
+    #获取每刻已导出的支付流水到CBS中间表
+    def getPaymentall(self,timeStamp,header):
         PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
+        '''
         #'%\_%' escape nchr(92) 转义 _ 
-        sql = "select max(cast(erp_payment_id as int )) as seq from authorization_to_payment where  ERP_PAYMENT_ID  not like '%\_%' escape nchr(92) "
-        mm = self.cxoracle.Query(sql)
+        #sql = "select max(cast(erp_payment_id as int )) as seq from authorization_to_payment where  erp_payment_id  not like '%\_%' escape nchr(92) "
+        sql = " select max(cast(erp_comment2 as int )) as seq from authorization_to_payment "
+        mm = self.cxoracle.query(sql)
         sequence = mm[0][0]
         if sequence == None:
             sequence = -1
-        #header = self.getHeader(timestamp)
-        data = {"timestamp": timestamp, "data": {"sequence": sequence}}
+        #header = self.getHeader(timeStamp)
+        '''
+        data = {"timestamp": timeStamp, "data": {"sequence": -1}}
         result = self.getPayment(PaymentUrl, data, header)
         if (result['code'] == 'ACK'):
 
-            Paymentdata = result.get('data')
-            #print(Paymentdata)
-            Paymentlist = []
-            for i in range(0, len(Paymentdata)):
-                dict = Paymentdata[i]
+            paymentData = result.get('data')
+            #print(paymentData)
+            paymentList = []
+            for i in range(0, len(paymentData)):
+                dict = paymentData[i]
                 sequence = dict['sequence']
+                erpPaymentId = str(sequence)+timeStamp
+                #print(erp_payment_id)
                 payeeBankCode = dict['payeeBankCode']
                 payeeBankCardNO = dict['payeeBankCardNO']
                 paidAmount = dict['paidAmount']
@@ -256,90 +257,143 @@ class Maycur():
                 payeeBankBranchNO = dict['payeeBankBranchNO']
                 payeeName = dict['payeeName']
                 acceptCcy = dict['acceptCcy']
-                if acceptCcy == 'CNY':
-                    acceptCcy = '10'
+                acceptCcy = self.currency(acceptCcy)
+                payeeTargetBizCode = dict['payeeTargetBizCode']
+                payeeBankBranchName = dict['payeeBankBranchName']
+                reason = self.getReason(payeeTargetBizCode,header)
                 if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
                     continue
-                CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,Amount,payerBankAccount)
-                list = (sequence,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO)
-                Paymentlist.append(list)
-            #print(Paymentlist)
-            insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE,PAYMENT_ACCOUNTS,DEPOSIT_ACCOUNTS_NAME,PAYMENT_CLTNBR,CURRENCY_TYPE,UNION_BANK_NUMBER)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15)"
-            self.cxoracle.Insert(insertsql,Paymentlist)
+                checkCode = self.getCheckCode(erpPaymentId,'Available',payeeBankCardNO,Amount,payerBankAccount)
+                list = (erpPaymentId,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,reason,0,checkCode,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO,'0',sequence,payeeTargetBizCode,payeeBankBranchName)
+                paymentList.append(list)
+            #print(paymentList)
+            insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19)"
+            self.cxoracle.insert(insertSql,paymentList)
             print("######################################################")
+            self.postExportstatus(timeStamp,header)     #回写已导出状态给每刻
         else:
             print("请求失败")
             print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-
-    #获取支付失败的流水
-    def getPaymentfailed(self,timestamp,header):
+    '''
+    #获取支付失败的流水更新CBS中间表
+    def getPaymentfailed(self,timeStamp,header):
         PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
-        #header = self.getHeader(timestamp)
-        #sql = " SELECT ERP_PAYMENT_ID FROM AUTHORIZATION_TO_PAYMENT   WHERE  RECORD_STATUS = 'Failed' and  ERP_PAYMENT_ID  not like '%\_' escape '\' "
-        sql = " SELECT ERP_PAYMENT_ID FROM AUTHORIZATION_TO_PAYMENT   WHERE  RECORD_STATUS = 'Failed' and  ERP_PAYMENT_ID  not like '%\_%' escape nchr(92) "
-        seq = self.cxoracle.Query(sql)
-        for  i in range(0, len(seq)):
-            sequence = seq[i][0]
-            sequence = int(sequence) -1
-            #data = {"timestamp": timestamp, "data": [{"sequence": sequence,"pageSize": 1 }]}
-            data = {"timestamp": timestamp, "data": {"sequence": sequence,"pageSize": 1 }}
-            result = self.getPayment(PaymentUrl, data, header)
-            Paymentdata = result.get('data')
-            Paymentlist = []
-            dict = Paymentdata[0]
-            sequence = dict['sequence']
-            #self.getCountseq(sequence)
-            sequence = str(sequence)+'_1'
-            payeeBankCode = dict['payeeBankCode']
-            payeeBankCardNO = dict['payeeBankCardNO']
-            paidAmount = dict['paidAmount']
-            Amount = [str(paidAmount),int(paidAmount)][int(paidAmount)==paidAmount]
-            #payerBankAccount = '19082301040025838'
-            payerBankAccount = dict['payerBankAccount']
-            payeeBankBranchNO = dict['payeeBankBranchNO']
-            payeeName = dict['payeeName']
-            acceptCcy = dict['acceptCcy']
-            if acceptCcy == 'CNY':
-                acceptCcy = '10'
-            if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
-                continue
-            CHECK_CODE = self.getCheckcode(sequence,'Available',payeeBankCardNO,Amount,payerBankAccount)
-            list = (sequence,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,CHECK_CODE,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO)
-            Paymentlist.append(list)
-            insertsql = "insert into authorization_to_payment(ERP_PAYMENT_ID, RECORD_STATUS,PAYMENT_TYPE_ID,PAYMENT_METHOD_TYPE_ID,DEPOSIT_ACCOUNTS,DEPOSIT_BANK_TYPE,AMOUNT,PURPOSE,VERSION,CHECK_CODE,PAYMENT_ACCOUNTS,DEPOSIT_ACCOUNTS_NAME,PAYMENT_CLTNBR,CURRENCY_TYPE,UNION_BANK_NUMBER)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15)"
-            self.cxoracle.Insert(insertsql,Paymentlist)
-
+        #header = self.getHeader(timeStamp)
+        #sql = " SELECT erp_payment_id FROM AUTHORIZATION_TO_PAYMENT   WHERE  RECORD_STATUS = 'Failed' and  erp_payment_id  not like '%\_' escape '\' "
+        #sql = " SELECT erp_payment_id FROM AUTHORIZATION_TO_PAYMENT   WHERE  RECORD_STATUS = 'Failed' and  erp_payment_id  not like '%\_%' escape nchr(92) "
+        sql = "select distinct erp_comment2 from authorization_to_payment a where a.cbs_last_update_time=(select max(cbs_last_update_time) from  authorization_to_payment b where      a.erp_comment2=b.erp_comment2 ) and record_status='Failed' "
+        seq = self.cxoracle.query(sql)
+        if seq == [] :
+            print("无支付失败数据")
+        else:
+            for  i in range(0, len(seq)):
+                sequence = seq[i][0]
+                if sequence == None:
+                    continue
+                sequence = int(sequence) -1
+                #data = {"timeStamp": timeStamp, "data": [{"sequence": sequence,"pageSize": 1 }]}
+                data = {"timeStamp": timeStamp, "data": {"sequence": sequence,"pageSize": 1 }}
+                result = self.getPayment(PaymentUrl, data, header)
+                paymentData = result.get('data')
+                #print(paymentData)
+                paymentList = []
+                dict = paymentData[0]
+                #print(dict)
+                sequence = dict['sequence']
+                erpPaymentId = str(sequence)+timeStamp
+                #print(erpPaymentId)
+                payeeBankCode = dict['payeeBankCode']
+                payeeBankCardNO = dict['payeeBankCardNO']
+                paidAmount = dict['paidAmount']
+                Amount = [str(paidAmount),int(paidAmount)][int(paidAmount)==paidAmount]
+                #payerBankAccount = '19082301040025838'
+                payerBankAccount = dict['payerBankAccount']
+                payeeBankBranchNO = dict['payeeBankBranchNO']
+                payeeName = dict['payeeName']
+                acceptCcy = dict['acceptCcy']
+                acceptCcy = self.currency(acceptCcy)
+                payeeTargetBizCode = dict['payeeTargetBizCode']
+                if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
+                    continue
+                checkCode = self.getCheckCode(erpPaymentId,'Available',payeeBankCardNO,Amount,payerBankAccount)
+                list = (erpPaymentId,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,'报销',0,checkCode,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO,'1',sequence,payeeTargetBizCode)
+                paymentList.append(list)
+                #print(paymentList)
+            insertsql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18)"
+            self.cxoracle.insert(insertsql,paymentList)
+    '''
     def getAccessToken(self, url, post, header):
         return self.utils.apiCall(url, post, header)
 
     def getPayment(self, url, data, header):
         return self.utils.apiCall(url, data, header)
 
+    def postPayment(self, url, data, header):
+        return self.utils.apiCall(url, data, header)
+
 
     #计算校验码
-    def getCheckcode(self,sequence,record_status,deposit_accounts,amount,payerBankAccount):
+    def getCheckCode(self,sequence,recordStatus,depositAccounts,amount,payerBankAccount):
         s = 0
         if payerBankAccount == None:
-            string = str(sequence)+record_status+deposit_accounts+str(amount)
+            string = str(sequence)+recordStatus+depositAccounts+str(amount)
         else:
-            string = str(sequence)+record_status+deposit_accounts+str(amount)+payerBankAccount  
+            string = str(sequence)+recordStatus+depositAccounts+str(amount)+payerBankAccount  
         for i in string:
         #for i in str(0)+'Available'+'127876169497'+str(50.0)+'19082301040025838':
             s = s +ord(i)
         s = s + 39*6
-        CHECK_CODE = ((s % 999) * (s % 2184)) % 9999
-        return CHECK_CODE
+        checkCode = ((s % 999) * (s % 2184)) % 9999
+        return checkCode
+    #加密
     def getSh256(self,res):
         return self.utils.Sha256(res)
     
-    def getCountseq(self,sequence):
-        seq = str(sequence)+'_'
-        print(seq)
-        sql = "select count(1) from AUTHORIZATION_TO_PAYMENT where erp_payment_id like '"+seq+"'    "
-        count = self.cxoracle.Query(sql)
-        #count = count[0]
-        #print(count)
-        return count
+
+    #获取CBS状态为0的支付流水
+    def getStatus0(self):
+        sql = "select  erp_payment_id,record_status,payment_accounts,cbs_last_update_time,cbs_comment,erp_comment2 from  authorization_to_payment where erp_comment1='0'  "
+        result = self.cxoracle.query(sql)
+        return result
+
+    #获取CBS状态为1的支付流水
+    def getStatus1(self):
+        sql = "select  erp_payment_id,record_status,payment_accounts,cbs_last_update_time,cbs_comment,erp_comment2  from (select t.*,row_number() over(partition by t.erp_comment2 order by t.cbs_last_update_time desc) rn from authorization_to_payment t) c where rn = 1 and record_status  in ('Failed','Success') and erp_comment1='1' "
+        result = self.cxoracle.query(sql)
+        return result
+
+    #每刻币种转换
+    def currency(self,acceptCcy):
+        return {
+            'CNY': '10',
+            #'b': 2,
+            #'c': 3,
+        }.get(acceptCcy,'error') 
+
+    #更新CBS中间表erp_comment1标识     '1'表示已导出或导出失败  标识'2'表示支付成功或失败
+    def updatePaymentFlag(self,erpPaymentId,type):
+        if type == '1':  
+            sql = "update authorization_to_payment set erp_comment1 = '1' where erp_payment_id = '"+erpPaymentId+"'"
+        else:
+            sql = "update authorization_to_payment set erp_comment1 = '2' where erp_payment_id = '"+erpPaymentId+"'"
+        self.cxoracle.exec(sql)
+
+    #获取报销事由
+    def getReason(self,businessCode,header):
+        import urllib.request
+        import urllib.parse
+        
+        url = 'https://uat.maycur.com/api/openapi/report/personal/detail?businessCode='+businessCode
+        entCode = header['entCode'] 
+        tokenId = header['tokenId'] 
+        request = urllib.request.Request(url)
+        request.add_header('entCode',entCode)
+        request.add_header('tokenId',tokenId)
+        result = urllib.request.urlopen(request).read()
+        result = self.utils.json(result,'decode')
+        data = result['data'][0]
+        reason = data['name']
+        return reason
 
 
 class Utils():
@@ -373,6 +427,7 @@ class Utils():
         return result
 
 import cx_Oracle
+
 class CxOracle():
 
 
@@ -381,8 +436,8 @@ class CxOracle():
         self._pwd = pwd
         self._tns = cx_Oracle.makedsn(host,port,service_name)
         self._conn = None
-        self._ReConnect()
-    def _ReConnect(self ):
+        self._reConnect()
+    def _reConnect(self ):
         if not self._conn :
             self._conn = cx_Oracle.connect (self._user, self._pwd,self._tns)
         else:
@@ -391,45 +446,47 @@ class CxOracle():
         if self. _conn:
             self ._conn. close()
             self ._conn = None
-    def _NewCursor(self ):
+    def _newCursor(self ):
         cur = self. _conn.cursor ()
         if cur:
             return cur
         else:
             print ("#Error# Get New Cursor Failed.")
         return None
-    def _DelCursor(self , cur):
+    def _delCursor(self , cur):
         if cur:
             cur .close()
-    def Query(self , sql):
+    def query(self , sql):
         rt = []
-        cur = self. _NewCursor()
+        cur = self. _newCursor()
         if not cur:
             return rt
         cur .execute(sql)
+        #print(cur)
         rt = cur.fetchall()
-        self ._DelCursor(cur)
+        #print(rt)
+        self ._delCursor(cur)
         return rt
   # 更新
-    def Exec(self ,sql):
+    def exec(self ,sql):
         rt = None
-        cur = self. _NewCursor()
+        cur = self. _newCursor()
         if not cur:
             return rt
-        rt = cur. execute(sql )
+        rt = cur.execute(sql)
         self._conn.commit()
-        self ._DelCursor(cur)
+        self ._delCursor(cur)
         return rt 
     #批量插入
-    def Insert(self ,sql,param):
+    def insert(self ,sql,param):
         rt = None
-        cur = self. _NewCursor()
+        cur = self. _newCursor()
         if not cur:
             return rt
         rt = cur. executemany(sql,param)
         self._conn.commit()
-        self ._DelCursor(cur)
-        return rt
+        self ._delCursor(cur)
+        return rt 
 
 '''
 def pxb():
