@@ -159,6 +159,7 @@ class Job_Data(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+    is_main_job = models.CharField(max_length=20, default='Y')
 
     empl_key = models.ForeignKey('Employee', on_delete=models.CASCADE, default = '', db_column = 'empl_key', to_field = 'key', related_name = 'empl')
     dept_key = models.ForeignKey('Department', on_delete=models.CASCADE, default = '', db_column = 'dept_key', to_field = 'key', related_name = 'dept')
