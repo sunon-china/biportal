@@ -246,6 +246,9 @@ class Maycur():
             for i in range(0, len(paymentData)):
                 dict = paymentData[i]
                 sequence = dict['sequence']
+                cnt = self.getCount(sequence)   #获取重新导出的每刻流水号在CBS中的记录数， 
+                if cnt == 0 :                   #判断为0则跳过这个流水号
+                    continue
                 erpPaymentId = str(sequence)+timeStamp
                 #print(erp_payment_id)
                 payeeBankCode = dict['payeeBankCode']
@@ -260,11 +263,16 @@ class Maycur():
                 acceptCcy = self.currency(acceptCcy)
                 payeeTargetBizCode = dict['payeeTargetBizCode']
                 payeeBankBranchName = dict['payeeBankBranchName']
+                paymentStatus = dict['paymentStatus']
+                if paymentStatus == 18 or paymentStatus == 66 :
+                    flag = 1
+                else:
+                    flag = 0
                 reason = self.getReason(payeeTargetBizCode,header)
                 if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
                     continue
                 checkCode = self.getCheckCode(erpPaymentId,'Available',payeeBankCardNO,Amount,payerBankAccount)
-                list = (erpPaymentId,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,reason,0,checkCode,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO,'0',sequence,payeeTargetBizCode,payeeBankBranchName)
+                list = (erpPaymentId,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,reason,0,checkCode,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO,flag,sequence,payeeTargetBizCode,payeeBankBranchName)
                 paymentList.append(list)
             #print(paymentList)
             insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19)"
@@ -361,6 +369,13 @@ class Maycur():
         sql = "select  erp_payment_id,record_status,payment_accounts,cbs_last_update_time,cbs_comment,erp_comment2  from (select t.*,row_number() over(partition by t.erp_comment2 order by t.cbs_last_update_time desc) rn from authorization_to_payment t) c where rn = 1 and record_status  in ('Failed','Success') and erp_comment1='1' "
         result = self.cxoracle.query(sql)
         return result
+
+    #获取SEQ流水号在CBS中的记录数，用来判断是否需要再插入中间表
+    def getCount(self,sequence):
+        sequence = str(sequence)
+        sql = "select   count(*) cnt  from (select t.*,row_number() over(partition by t.erp_comment2 order by t.cbs_last_update_time desc) rn from authorization_to_payment t) c where rn = 1 and record_status ='Failed' and erp_comment2='"+sequence+"'"
+        result = self.cxoracle.query(sql)
+        return result[0][0]
 
     #每刻币种转换
     def currency(self,acceptCcy):
