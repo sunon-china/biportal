@@ -25,7 +25,7 @@ SECRET_KEY = '_t=)jq)1en!$$q%bzvpuo+e9-*ggv+0b5zj_e!0u0^2wp*ld07'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['172.16.59.194']
+ALLOWED_HOSTS = ['172.16.189.69']
 
 
 # Application definition
@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_crontab',
-
     'rest_framework',
     #'mdm.apps.MdmConfig',
     'mdm',
@@ -152,5 +151,25 @@ STATIC_URL = '/static/'
 
 # Crontab
 CRONJOBS = [
-    ('* * * */1 *', 'mdm.cron.pxb', '>>/home/test.log')
+    #('0 */5 * * * ?', 'mdm.cron.py', '>>/home/test.log')
+    ('30 21 * * *', 'mdm.cron.pxb', '>>/home/test.log')
 ]
+
+
+#邮箱设置
+'''
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_USE_SSL = True
+EMAIL_HOST = 'smtp.sunon-china.com'  #发送邮件服务器
+EMAIL_PORT = 25                      #端口
+EMAIL_HOST_USER = 'oa@sunon-china.com' # 帐号
+EMAIL_HOST_PASSWORD = 'Hello1234'  # 密码
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+'''
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_USE_TLS = False
+EMAIL_HOST = 'smtp.sunon-china.com'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = 'oa@sunon-china.com'
+EMAIL_HOST_PASSWORD = 'Hello1234'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

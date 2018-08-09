@@ -23,6 +23,8 @@ class Pxb():
         from mdm.models import Department 
         from mdm.models import Employee 
         from mdm.models import Job_Data 
+        from django.core.mail import send_mail
+        from django.conf import settings
 
         self.company = Company
         self.department = Department
@@ -48,6 +50,7 @@ class Pxb():
 
             #Synchronize root company
             rootCompany = self.getRootCompany()
+            #print(rootCompany)
             company = {}
             company['code'] = rootCompany[0]['code']
             company['organization_name'] = rootCompany[0]['name']
@@ -56,10 +59,12 @@ class Pxb():
                 print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
             else:
                 print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-
-          
+                self.utils.postEmail('系统提醒','培训宝公司信息同步失败！','chendong@sunon-china.com')
             #Synchronize organization
             departments = self.getDepartments()
+            #删除组织信息
+            #self.postDeleteOrganization(departments,header)
+            #同步组织
             organizations = []
             for d in departments:
                 if (d['parent_dept_key__code'] == ''):
@@ -73,27 +78,115 @@ class Pxb():
                     'organization_name': d['name'],
                     'parent_code': parentCode
                 })
-            #print(organizations)
+            print(organizations)
             updateReturn = self.synchronizeOrganizations(synchronizeOrganizationsUrl, organizations, header)
             if (updateReturn['err'] == 0):
-                print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+               print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
             else:
                 print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-
+                self.utils.postEmail('系统提醒','培训宝组织信息同步失败！','chendong@sunon-china.com')
             
             #Synchronize student 
             employees = self.getEmployees()
-            '''
-            updateReturn = self.synchronizeStudents(synchronizeStudentsUrl, employees, header)
-            if (updateReturn['err'] == 0):
-                print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
-            else:
-                print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-            '''
-
+            #删除人员信息
+            #self.postDeleteEmployee(employees,header)
+            #同步人员信息
+            self.postUpdateEmployee(employees,header)
         #Get access token error
         else:
             print(str(accessToken['err']) + ' ' + accessToken['data'])
+            self.utils.postEmail('系统提醒','获取培训宝accessToken失败！','chendong@sunon-china.com')
+        #send_mail('test', 'Here is the message.', 'oa@sunon-china.com',['chendong@sunon-china.com'], fail_silently=False)
+        #self.utils.postEmail('test','Here is the message.','chendong@sunon-china.com')
+
+    #删除组织信息
+    def postDeleteOrganization(self,departments,header):
+        url = 'http://www.91pxb.com/api/Companies/DeleteOrganizations'
+        organizationsList = []
+        for d in departments:
+            organizationsList.append({'code': d['code']})
+        print(organizationsList)
+        updateReturn = self.synchronizeOrganizations(url, organizationsList, header)
+        if (updateReturn['err'] == 0):
+            print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+        else:
+            print(str(updateReturn['err']) + ' ' + updateReturn['data'])
+
+
+    #同步人员信息
+    def postUpdateEmployee(self,employees,header):
+        
+        url = 'http://www.91pxb.com/api/Employees/SynchronizeStudents'
+        
+        count = 1
+        employeeList = []
+            
+        for i in range(0, len(employees)) :
+            count += 1
+            key = employees[i][0]
+            name = employees[i][1]
+            employeeId = employees[i][2]
+            department = employees[i][3]
+            position = employees[i][4]
+            sex = employees[i][5]
+            mobilePhone = employees[i][6]
+            defaultCode = employees[i][7]
+            organizationCode = employees[i][8]
+            organizationCodeList = [organizationCode]
+            #print(organizationCodeList)
+            list = ({"code": key, "chinese_name": name, "employee_id": employeeId, "department": department, "position": position, "gender": sex, "mobile": mobilePhone, "default_code": defaultCode, "organization_codes": organizationCodeList })
+            employeeList.append(list)
+            
+            if count == 1000 :
+                print(employeeList)
+                updateReturn = self.synchronizeOrganizations(url, employeeList, header)
+                if (updateReturn['err'] == 0):
+                    print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+                else:
+                    print(str(updateReturn['err']) + ' ' + updateReturn['data'])
+                    self.utils.postEmail('系统提醒','培训宝人员信息同步失败！','chendong@sunon-china.com')
+                count = 1
+                list = ()
+                employeeList = []
+        print('postUpdateEmployee++++',employeeList)
+        updateReturn = self.synchronizeOrganizations(url, employeeList, header)
+        if (updateReturn['err'] == 0):
+            print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+        else:
+            print(str(updateReturn['err']) + ' ' + updateReturn['data'])
+            self.utils.postEmail('系统提醒','培训宝人员信息同步失败！','chendong@sunon-china.com')
+
+    #删除pxb人员信息
+    def postDeleteEmployee(self,employees,header): 
+        
+        url = 'http://www.91pxb.com/api/Employees/DeleteStudents'
+
+        count = 1
+        employeeList = []
+            
+        for i in range(0, len(employees)) :
+            count += 1
+            key = employees[i][0]
+            #print(organizationCodeList)
+            list = ({"code": key })
+            employeeList.append(list)
+            if count == 1000 :
+                print(employeeList)
+                updateReturn = self.synchronizeOrganizations(url, employeeList, header)
+                if (updateReturn['err'] == 0):
+                    print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+                else:
+                    print(str(updateReturn['err']) + ' ' + updateReturn['data'])
+                count = 1
+                list = ()
+                employeeList = []
+        print('postDeleteEmployee+++++',employeeList)
+        updateReturn = self.synchronizeOrganizations(url, employeeList, header)
+        if (updateReturn['err'] == 0):
+            print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+        else:
+            print(str(updateReturn['err']) + ' ' + updateReturn['data'])
+            self.utils.postEmail('系统提醒','培训宝人员信息删除失败！','chendong@sunon-china.com')
         
 
     #Get 91PXB access token    
@@ -107,6 +200,7 @@ class Pxb():
     #Get company from MDM db
     def getRootCompany(self):
         companies = self.company.objects.filter(status = 2, effective_flag = 0, parent_company_key = '').values('code', 'name')
+        print(companies.query)
         return companies
 
 
@@ -119,14 +213,25 @@ class Pxb():
         return self.utils.apiCall(url, post, header)
 
     def getEmployees(self):
-        employees = self.jobData.objects.filter(effective_flag = 0, empl_key__effective_flag = 0, dept_key__effective_flag = 0, pos_key__effective_flag = 0).values('empl_key__code', 'empl_key__name', 'empl__sex', 'empl__mobile', 'dept_key__name', 'pos_key__name')
-        print(employees.query)
+        #employees = self.jobData.objects.filter(effective_flag = 0, empl_key__effective_flag = 0, dept_key__effective_flag = 0, pos_key__effective_flag = 0).values('empl_key__code', 'empl_key__name', 'empl__sex', 'empl__mobile', 'dept_key__name', 'pos_key__name')
+        employees = self.biPortalConn()
+        #employees = self.jobData.objects.all()#.values('empl_key').annotate(Max('start_date'))
+        #print(employees.query) # t.objects.all().values('b').annotate(max_a=Max('a')),不过这样查出来只有b和max_a2个字段
         #employees = [{'code': '000001', 'chinese_name': '赵峰', 'employee_id': '000001', 'default_code': '04007', 'organization_codes': ['04007']}]
-        print(employees)
+        #print(employees)
         return employees
 
     def synchronizeStudents(self, url, post, header):
         return self.utils.apiCall(url, post, header)
+
+    def biPortalConn(self):
+        from django.db import connection
+        cursor = connection.cursor()
+        sql = "select mdm_employee.key, mdm_employee.name, mdm_employee.code, mdm_department.name, mdm_position.name, mdm_employee.sex, mdm_employee.mobile, mdm_department.code as default_code, mdm_department.code organization_codes from mdm_job_data a left join mdm_employee on a.empl_key = mdm_employee.key left join mdm_department on a.dept_key = mdm_department.key left join mdm_position on a.pos_key = mdm_position.key where a.effective_flag = 0 and mdm_employee.effective_flag = 0  and mdm_department.effective_flag = 0 and mdm_position.effective_flag = 0  and a.start_date = (select max(start_date) from mdm_job_data b where b.empl_key=a.empl_key) order by mdm_employee.id asc"
+        cursor.execute(sql)
+        row = cursor.fetchall()
+        #print(row)
+        return row 
 
 
 import os   
@@ -268,8 +373,9 @@ class Maycur():
                     flag = 1
                 else:
                     flag = 0
-                #print(flag, payeeBankCode, payeeBankCardNO, Amount)
-                reason = self.getReason(payeeTargetBizCode,header)
+                payeeTarget = dict['payeeTarget']
+                #获取单据事由
+                reason = self.getReason(payeeTargetBizCode,header,payeeTarget)
                 if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
                     continue
                 checkCode = self.getCheckCode(erpPaymentId,'Available',payeeBankCardNO,Amount,payerBankAccount)
@@ -361,12 +467,21 @@ class Maycur():
             sql = "update authorization_to_payment set erp_comment1 = '2' where erp_payment_id = '"+erpPaymentId+"'"
         self.cxoracle.exec(sql)
 
-    #获取报销事由
-    def getReason(self, businessCode, header):
+    #获取对私报销事由   
+    def getReason(self, businessCode, header,payeeTarget):
         import urllib.request
         import urllib.parse
-        
-        url = 'https://uat.maycur.com/api/openapi/report/personal/detail?businessCode='+businessCode
+
+        #获取对私报销事由的url
+        if payeeTarget == 'PERSONAL' :
+            url = 'https://uat.maycur.com/api/openapi/report/personal/detail?businessCode='+businessCode
+        #获取对公报销事由的url
+        if payeeTarget == 'CORP' :
+            url = 'https://uat.maycur.com/api/openapi/report/corp/detail?businessCode='+businessCode
+        #获取消费申请事由的url
+        if payeeTarget == 'EXPENSE' :
+            url = 'https://uat.maycur.com/api/openapi/report/consume/detail?businessCode='+businessCode
+
         entCode = header['entCode'] 
         tokenId = header['tokenId'] 
         request = urllib.request.Request(url)
@@ -374,9 +489,12 @@ class Maycur():
         request.add_header('tokenId', tokenId)
         result = urllib.request.urlopen(request).read()
         result = self.utils.json(result, 'decode')
+        print(result)
         data = result['data'][0]
         reason = data['name']
         return reason
+
+
 '''
     #获取支付失败的流水更新CBS中间表
     def getPaymentfailed(self,timeStamp,header):
@@ -457,6 +575,13 @@ class Utils():
         result = sha256.hexdigest()
         return result
 
+    #发送邮件
+    def postEmail(self,title,content,addressee):
+        from django.core.mail import send_mail
+        from django.conf import settings
+        res = send_mail(title, content, 'oa@sunon-china.com',[addressee], fail_silently=False)
+        return res
+
 import cx_Oracle
 
 class CxOracle():
@@ -529,5 +654,6 @@ def maycur():
     maycur = Maycur()
     maycur.main()
 '''
+
 
 
