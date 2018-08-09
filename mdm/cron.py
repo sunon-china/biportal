@@ -23,8 +23,6 @@ class Pxb():
         from mdm.models import Department 
         from mdm.models import Employee 
         from mdm.models import Job_Data 
-        from django.core.mail import send_mail
-        from django.conf import settings
 
         self.company = Company
         self.department = Department
@@ -63,7 +61,7 @@ class Pxb():
             #Synchronize organization
             departments = self.getDepartments()
             #删除组织信息
-            #self.postDeleteOrganization(departments,header)
+            #self.postDeleteOrganization(departments, header)
             #同步组织
             organizations = []
             for d in departments:
@@ -84,23 +82,23 @@ class Pxb():
                print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
             else:
                 print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-                self.utils.postEmail('系统提醒','培训宝组织信息同步失败！','chendong@sunon-china.com')
+                self.utils.postEmail('系统提醒', '培训宝组织信息同步失败！', 'chendong@sunon-china.com')
             
             #Synchronize student 
             employees = self.getEmployees()
             #删除人员信息
-            #self.postDeleteEmployee(employees,header)
+            #self.postDeleteEmployee(employees, header)
             #同步人员信息
-            self.postUpdateEmployee(employees,header)
+            self.postUpdateEmployee(employees, header)
         #Get access token error
         else:
             print(str(accessToken['err']) + ' ' + accessToken['data'])
-            self.utils.postEmail('系统提醒','获取培训宝accessToken失败！','chendong@sunon-china.com')
+            self.utils.postEmail('系统提醒', '获取培训宝accessToken失败！', 'chendong@sunon-china.com')
         #send_mail('test', 'Here is the message.', 'oa@sunon-china.com',['chendong@sunon-china.com'], fail_silently=False)
         #self.utils.postEmail('test','Here is the message.','chendong@sunon-china.com')
 
     #删除组织信息
-    def postDeleteOrganization(self,departments,header):
+    def postDeleteOrganization(self, departments, header):
         url = 'http://www.91pxb.com/api/Companies/DeleteOrganizations'
         organizationsList = []
         for d in departments:
@@ -114,7 +112,7 @@ class Pxb():
 
 
     #同步人员信息
-    def postUpdateEmployee(self,employees,header):
+    def postUpdateEmployee(self, employees, header):
         
         url = 'http://www.91pxb.com/api/Employees/SynchronizeStudents'
         
@@ -144,20 +142,20 @@ class Pxb():
                     print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
                 else:
                     print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-                    self.utils.postEmail('系统提醒','培训宝人员信息同步失败！','chendong@sunon-china.com')
+                    self.utils.postEmail('系统提醒', '培训宝人员信息同步失败！', 'chendong@sunon-china.com')
                 count = 1
                 list = ()
                 employeeList = []
-        print('postUpdateEmployee++++',employeeList)
+        print('postUpdateEmployee++++', employeeList)
         updateReturn = self.synchronizeOrganizations(url, employeeList, header)
         if (updateReturn['err'] == 0):
             print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
         else:
             print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-            self.utils.postEmail('系统提醒','培训宝人员信息同步失败！','chendong@sunon-china.com')
+            self.utils.postEmail('系统提醒', '培训宝人员信息同步失败！', 'chendong@sunon-china.com')
 
     #删除pxb人员信息
-    def postDeleteEmployee(self,employees,header): 
+    def postDeleteEmployee(self, employees, header): 
         
         url = 'http://www.91pxb.com/api/Employees/DeleteStudents'
 
@@ -180,13 +178,13 @@ class Pxb():
                 count = 1
                 list = ()
                 employeeList = []
-        print('postDeleteEmployee+++++',employeeList)
+        print('postDeleteEmployee+++++', employeeList)
         updateReturn = self.synchronizeOrganizations(url, employeeList, header)
         if (updateReturn['err'] == 0):
             print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
         else:
             print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-            self.utils.postEmail('系统提醒','培训宝人员信息删除失败！','chendong@sunon-china.com')
+            self.utils.postEmail('系统提醒', '培训宝人员信息删除失败！', 'chendong@sunon-china.com')
         
 
     #Get 91PXB access token    
@@ -240,7 +238,7 @@ class Maycur():
 
     def __init__(self):
         self.utils = Utils()
-        self.cxoracle = CxOracle('cbs','sunon$2018','172.16.59.182',1521,'sunon')
+        self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.182', 1521, 'sunon')
         
     def main(self):
         import time
@@ -297,7 +295,7 @@ class Maycur():
                 #print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
 
     #post已导出状态给每刻
-    def postExportstatus(self,timeStamp,header):
+    def postExportstatus(self, timeStamp, header):
 
         postMaycurUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/update'
         #获取每刻回写到CBS的流水数据
@@ -378,15 +376,15 @@ class Maycur():
                 reason = self.getReason(payeeTargetBizCode,header,payeeTarget)
                 if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
                     continue
-                checkCode = self.getCheckCode(erpPaymentId,'Available',payeeBankCardNO,Amount,payerBankAccount)
-                list = (erpPaymentId,'Available','401','2',payeeBankCardNO,payeeBankCode,paidAmount,reason,0,checkCode,payerBankAccount,payeeName,'5500',acceptCcy,payeeBankBranchNO,flag,sequence,payeeTargetBizCode,payeeBankBranchName)
+                checkCode = self.getCheckCode(erpPaymentId, 'Available', payeeBankCardNO, Amount, payerBankAccount)
+                list = (erpPaymentId, 'Available', '401', '2', payeeBankCardNO, payeeBankCode, paidAmount, reason, 0, checkCode, payerBankAccount, payeeName, '5500', acceptCcy, payeeBankBranchNO, flag, sequence, payeeTargetBizCode, payeeBankBranchName)
                 paymentList.append(list)
             print(paymentList)
             insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19)"
-            self.cxoracle.insert(insertSql,paymentList)
+            self.cxoracle.insert(insertSql, paymentList)
             print("######################################################")
             #回写已导出状态给每刻
-            self.postExportstatus(timeStamp,header)  
+            self.postExportstatus(timeStamp, header)  
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         else:
             print("请求失败")
@@ -468,7 +466,7 @@ class Maycur():
         self.cxoracle.exec(sql)
 
     #获取对私报销事由   
-    def getReason(self, businessCode, header,payeeTarget):
+    def getReason(self, businessCode, header, payeeTarget):
         import urllib.request
         import urllib.parse
 
@@ -576,10 +574,10 @@ class Utils():
         return result
 
     #发送邮件
-    def postEmail(self,title,content,addressee):
+    def postEmail(self, title, content, addressee):
         from django.core.mail import send_mail
         from django.conf import settings
-        res = send_mail(title, content, 'oa@sunon-china.com',[addressee], fail_silently=False)
+        res = send_mail(title, content, 'oa@sunon-china.com', [addressee], fail_silently=False)
         return res
 
 import cx_Oracle
@@ -590,7 +588,7 @@ class CxOracle():
     def __init__(self, user, pwd, host, port, service_name ):
         self._user = user
         self._pwd = pwd
-        self._tns = cx_Oracle.makedsn(host,port,service_name)
+        self._tns = cx_Oracle.makedsn(host, port, service_name)
         self._conn = None
         self._reConnect()
     def _reConnect(self):
