@@ -241,7 +241,6 @@ class Legal_Entity(models.Model):
     class Meta:
         ordering = ('name',)
 
-
 class Contract(models.Model):
     key = models.CharField(max_length=20)
     empl_key = models.CharField(max_length=20)
@@ -262,10 +261,9 @@ class Contract(models.Model):
     created_date = models.DateField()
     #def __str__(self):
      #   return self.empl_key
-    
+ 
     class Meta:
         ordering = ('key',)
-
 
         
 
