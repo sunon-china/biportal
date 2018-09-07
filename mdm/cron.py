@@ -527,4 +527,3 @@ def maycur():
     maycur.main()
 
 
-maycur()
