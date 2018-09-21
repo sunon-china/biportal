@@ -36,7 +36,7 @@ class Department(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
-    erp_code = models.CharField(max_length=20)
+    erp_code = models.CharField(max_length=20,blank=True, null=True)
     parent_dept_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_dept_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name
@@ -120,7 +120,7 @@ class Org_Relation(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
-    erp_code = models.CharField(max_length=20)
+    erp_code = models.CharField(max_length=20,blank=True, null=True)
     def __str__(self):
         return self.empl_id
     
@@ -243,6 +243,7 @@ class Legal_Entity(models.Model):
     class Meta:
         ordering = ('name',)
 
+
 class Contract(models.Model):
     key = models.CharField(max_length=20)
     empl_key = models.CharField(max_length=20)
@@ -263,9 +264,10 @@ class Contract(models.Model):
     created_date = models.DateField()
     #def __str__(self):
      #   return self.empl_key
- 
+    
     class Meta:
         ordering = ('key',)
+
 
         
 
