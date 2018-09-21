@@ -36,6 +36,7 @@ class Department(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+    erp_code = models.CharField(max_length=20)
     parent_dept_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_dept_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name
@@ -119,6 +120,7 @@ class Org_Relation(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+    erp_code = models.CharField(max_length=20)
     def __str__(self):
         return self.empl_id
     
