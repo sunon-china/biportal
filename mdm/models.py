@@ -36,13 +36,14 @@ class Department(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+    erp_code = models.CharField(max_length=20,blank=True, null=True)
     parent_dept_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_dept_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name
     
     class Meta:
         ordering = ('name',)
-		
+        
 class Position(models.Model):
     key = models.CharField(max_length=20, unique=True)
     code = models.CharField(max_length=40)
@@ -64,7 +65,7 @@ class Position(models.Model):
     
     class Meta:
         ordering = ('name',)
-	
+    
 class Employee(models.Model):
     key = models.CharField(max_length=20, unique=True)
     code = models.CharField(max_length=20)
@@ -94,7 +95,7 @@ class Employee(models.Model):
     biz_card_dept_en = models.CharField(max_length=200, blank=True, null=True)
     biz_card_pos_cn = models.CharField(max_length=200, blank=True, null=True)
     biz_card_pos_en = models.CharField(max_length=200, blank=True, null=True)
-    status = models.IntegerField(default=1)	
+    status = models.IntegerField(default=1)    
     effective_flag = models.IntegerField(default=0)
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
@@ -104,7 +105,7 @@ class Employee(models.Model):
     
     class Meta:
         ordering = ('name',)
-		
+        
 class Org_Relation(models.Model):
     key = models.CharField(max_length=20)
     empl_id = models.CharField(max_length=20)
@@ -119,12 +120,13 @@ class Org_Relation(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
+    erp_code = models.CharField(max_length=20,blank=True, null=True)
     def __str__(self):
         return self.empl_id
     
     class Meta:
         ordering = ('empl_id',)
-		
+        
 class Job_Data(models.Model):
     key = models.CharField(max_length=20)
     dept_key = models.CharField(max_length=20)
@@ -147,7 +149,7 @@ class Job_Data(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     supervisor_key = models.CharField(max_length=20,blank=True, null=True)
-    team_leader_key = models.CharField(max_length=20,blank=True, null=True)	
+    team_leader_key = models.CharField(max_length=20,blank=True, null=True)    
     work_city_key = models.CharField(max_length=20,blank=True, null=True)
     action = models.IntegerField()
     transfer_type_key = models.CharField(max_length=20,blank=True, null=True)
@@ -160,7 +162,6 @@ class Job_Data(models.Model):
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
     is_main_job = models.CharField(max_length=20, default='Y')
-
     empl_key = models.ForeignKey('Employee', on_delete=models.CASCADE, default = '', db_column = 'empl_key', to_field = 'key', related_name = 'empl')
     dept_key = models.ForeignKey('Department', on_delete=models.CASCADE, default = '', db_column = 'dept_key', to_field = 'key', related_name = 'dept')
     pos_key = models.ForeignKey('Position', on_delete=models.CASCADE, default = '', db_column = 'pos_key', to_field = 'key', related_name = 'pos')
@@ -169,7 +170,7 @@ class Job_Data(models.Model):
     
     class Meta:
         ordering = ('company_key',)
-		
+        
 class Probation_Data(models.Model):
     key = models.CharField(max_length=20)
     empl_key = models.CharField(max_length=20)
@@ -188,7 +189,7 @@ class Probation_Data(models.Model):
     
     class Meta:
         ordering = ('empl_key',)
-		
+        
 class Dept_Supervisor(models.Model):
     key = models.CharField(max_length=20)
     dept_key = models.CharField(max_length=20)
@@ -202,7 +203,7 @@ class Dept_Supervisor(models.Model):
     
     class Meta:
         ordering = ('supervisor_key',)
-		
+        
 class Conf(models.Model):
     key = models.CharField(max_length=20)
     code = models.CharField(max_length=40)
@@ -217,8 +218,52 @@ class Conf(models.Model):
         return self.name
     
     class Meta:
-        ordering = ('name',)	
-		
+        ordering = ('name',)
+
+class Legal_Entity(models.Model):
+    key = models.CharField(max_length=20, unique = True, default='')
+    code = models.CharField(max_length=40)
+    name = models.CharField(max_length=200)
+    short_name = models.CharField(max_length=200, blank=True, null=True)
+    parent_company_key = models.CharField(max_length=20, blank=True, null=True)
+    status = models.IntegerField(default=1)
+    effective_flag = models.IntegerField(default=0)
+    created_job = models.CharField(max_length=100, blank=True, null=True)
+    created_tr = models.CharField(max_length=100, blank=True, null=True)
+    created_date = models.DateField(default=django.utils.timezone.now)
+    parent_company_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_company_key', blank=True, null = True, to_field = 'key')
+    def __str__(self):
+        return self.name 
+    class Meta:
+        ordering = ('name',)
+
+
+class Contract(models.Model):
+    key = models.CharField(max_length=20)
+    empl_key = models.CharField(max_length=20)
+    org_relation_key = models.CharField(max_length=20)
+    job_data_key = models.CharField(max_length=20)
+    company_key = models.CharField(max_length=20)
+    contract_sign_company = models.CharField(max_length=100)
+    contract_main_company = models.CharField(max_length=100)
+    business_type = models.CharField(max_length=20)
+    contract_start_date = models.DateField()
+    contract_end_date = models.DateField()
+    seq = models.IntegerField(null=True)  
+    last_flag = models.CharField(max_length=1,null=True)
+    isrefer = models.CharField(max_length=1,null=True)
+    effective_flag = models.IntegerField(default=0)
+    created_job = models.CharField(max_length=100, blank=True, null=True)
+    created_tr = models.CharField(max_length=100, blank=True, null=True)
+    created_date = models.DateField()
+    #def __str__(self):
+     #   return self.empl_key
+    
+    class Meta:
+        ordering = ('key',)
+
+
+        
 
     
 

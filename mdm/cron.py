@@ -13,6 +13,8 @@ ChangeLog
 2018/07/11 Feng ZHAO Synchronize organizations
 2018/07/12 Feng ZHAO Synchronize students 
 2018/07/18 Dong CHEN add class Maycur class CxOracle
+2018/10/16.Dong Chen add CBS支付方式变更为202,
+2018/10/18.Dong Chen add 获取每刻中的公司支付账号
 '''
 
 class Pxb():
@@ -38,7 +40,7 @@ class Pxb():
         synchronizeOrganizationsUrl = 'http://www.91pxb.com/api/Companies/SynchronizeOrganizations'
         synchronizeStudentsUrl = 'http://www.91pxb.com/api/Employees/SynchronizeStudents'
 
-        auth = {'appId': 'hHvKkSxRt113b690', 'appSecret': '98F2709A98B91FD3BEEFB32697DD144971246D0A'}
+        auth = {'appId': 'hHvKkSxRt113b690', 'appSecret': '9E1D83DDC64A55020068AEA3F894621A5EA424DB'}
         header = {'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'}
 
 
@@ -57,7 +59,7 @@ class Pxb():
                 print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
             else:
                 print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-                self.utils.postEmail('系统提醒','培训宝公司信息同步失败！','chendong@sunon-china.com')
+                self.utils.postEmail('系统提醒', '培训宝公司信息同步失败！', 'chendong@sunon-china.com')
             #Synchronize organization
             departments = self.getDepartments()
             #删除组织信息
@@ -94,7 +96,7 @@ class Pxb():
         else:
             print(str(accessToken['err']) + ' ' + accessToken['data'])
             self.utils.postEmail('系统提醒', '获取培训宝accessToken失败！', 'chendong@sunon-china.com')
-        #send_mail('test', 'Here is the message.', 'oa@sunon-china.com',['chendong@sunon-china.com'], fail_silently=False)
+        #send_mail('test', 'Here is the message.', 'noreply.bi@sunon-china.com ',['chendong@sunon-china.com'], fail_silently=False)
         #self.utils.postEmail('test','Here is the message.','chendong@sunon-china.com')
 
     #删除组织信息
@@ -211,18 +213,6 @@ class Pxb():
         return self.utils.apiCall(url, post, header)
 
     def getEmployees(self):
-        #employees = self.jobData.objects.filter(effective_flag = 0, empl_key__effective_flag = 0, dept_key__effective_flag = 0, pos_key__effective_flag = 0).values('empl_key__code', 'empl_key__name', 'empl__sex', 'empl__mobile', 'dept_key__name', 'pos_key__name')
-        employees = self.biPortalConn()
-        #employees = self.jobData.objects.all()#.values('empl_key').annotate(Max('start_date'))
-        #print(employees.query) # t.objects.all().values('b').annotate(max_a=Max('a')),不过这样查出来只有b和max_a2个字段
-        #employees = [{'code': '000001', 'chinese_name': '赵峰', 'employee_id': '000001', 'default_code': '04007', 'organization_codes': ['04007']}]
-        #print(employees)
-        return employees
-
-    def synchronizeStudents(self, url, post, header):
-        return self.utils.apiCall(url, post, header)
-
-    def biPortalConn(self):
         from django.db import connection
         cursor = connection.cursor()
         sql = "select mdm_employee.key, mdm_employee.name, mdm_employee.code, mdm_department.name, mdm_position.name, mdm_employee.sex, mdm_employee.mobile, mdm_department.code as default_code, mdm_department.code organization_codes from mdm_job_data a left join mdm_employee on a.empl_key = mdm_employee.key left join mdm_department on a.dept_key = mdm_department.key left join mdm_position on a.pos_key = mdm_position.key where a.effective_flag = 0 and mdm_employee.effective_flag = 0  and mdm_department.effective_flag = 0 and mdm_position.effective_flag = 0  and a.start_date = (select max(start_date) from mdm_job_data b where b.empl_key=a.empl_key) order by mdm_employee.id asc"
@@ -231,6 +221,18 @@ class Pxb():
         #print(row)
         return row 
 
+    def synchronizeStudents(self, url, post, header):
+        return self.utils.apiCall(url, post, header)
+'''
+    def biPortalConn(self):
+        from django.db import connection
+        cursor = connection.cursor()
+        sql = "select mdm_employee.key, mdm_employee.name, mdm_employee.code, mdm_department.name, mdm_position.name, mdm_employee.sex, mdm_employee.mobile, mdm_department.code as default_code, mdm_department.code organization_codes from mdm_job_data a left join mdm_employee on a.empl_key = mdm_employee.key left join mdm_department on a.dept_key = mdm_department.key left join mdm_position on a.pos_key = mdm_position.key where a.effective_flag = 0 and mdm_employee.effective_flag = 0  and mdm_department.effective_flag = 0 and mdm_position.effective_flag = 0  and a.start_date = (select max(start_date) from mdm_job_data b where b.empl_key=a.empl_key) order by mdm_employee.id asc"
+        cursor.execute(sql)
+        row = cursor.fetchall()
+        #print(row)
+        return row 
+'''
 
 import os   
 os.environ['NLS_LANG'] = 'SIMPLIFIED CHINESE_CHINA.UTF8' 
@@ -238,14 +240,17 @@ class Maycur():
 
     def __init__(self):
         self.utils = Utils()
-        self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.182', 1521, 'sunon')
-        
+        #CBS测试地址
+        #self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.182', 1521, 'sunon')
+        #CBS正式地址
+        self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.139', 1521, 'cbsdb')
+
     def main(self):
         import time
         timeStamp = str(int(time.time()*1000))
         header = self.getHeader(timeStamp)
-        self.getAllPayment(timeStamp,header)        
-
+        accountCorpDict = self.getCompanyPayAccount(header) #公司支付账号字典
+        self.getAllPayment(timeStamp, header, accountCorpDict)
         #self.getPaymentfailed(timeStamp,header)
         self.postPaymentstatus(header)              #回写支付状态给每刻
 
@@ -253,30 +258,39 @@ class Maycur():
     def postPaymentstatus(self, header):
         import time
  
-        postMaycurUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/update'
+        postMaycurUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/update'
    
         cbsData = self.getLabeled()
-        print(cbsData)
+        print('回写每刻支付成功或支付失败状态cbsData++++++++++++++++++++++++++++++++++++++++++++++++',cbsData)
 
         if cbsData == [] :
             print("postPaymentstatus:暂无数据需要回写每刻")
         else:
+            print('回写每刻支付状态——++++++++++++++++++++++++')
             for i in range(0, len(cbsData)):
                 dataList = []
                 paymentAccounts = cbsData[i][2]
-                recordStatus = cbsData[i][1]
-                if recordStatus == 'Success' and paymentAccounts == None:
-                    continue
+                Status = cbsData[i][1]
+                #if recordStatus == 'Success' and paymentAccounts == None:
+                #    continue
                 PayDate = cbsData[i][3]
                 errorMsg = cbsData[i][4]
-                if errorMsg != None:
-                    errorMsg = self.utils.json(errorMsg, 'decode')
+                #print('错误提醒+++++++++++',errorMsg)
+                #if errorMsg != None:
+                #    errorMsg = self.utils.json(errorMsg, 'decode')
                 sequence = cbsData[i][5]
                 erpPaymentId = cbsData[i][0]
-                if recordStatus != 'Success':
+                depositBankType = cbsData[i][6]
+                #if depositBankType == 'ABC':
+                #paymentAccounts = '19'+paymentAccounts
+                #print(paymentAccounts)
+                if Status != 'Success':
                     recordStatus = 'PAY_FAIL'
+                    
                 else:
                     recordStatus = 'PAY_SUCCESS'
+                    errorMsg = ''
+                print('recordStatus++++++++',recordStatus)
                 timeArray = time.strptime(PayDate, "%Y-%m-%d %H:%M:%S")
                 #支付时间的时间戳:
                 timeStamp = int(time.mktime(timeArray)*1000)
@@ -287,17 +301,20 @@ class Maycur():
                 #当前时间的时间戳CBS_EXPORT_FAILED
                 nowtimeStamp = int(time.time()*1000)
                 data = {"timeStamp": nowtimeStamp, "data": dataList}
+                print('data++++++++++++++++++++++++++++++++++++++++++++++++++',data)
                 result = self.postPayment(postMaycurUrl, data, header)
-                print(result)
+                #print('result++++++++++++',result)
+                #print('result+++++++++++++++++++++++++++++++++++++++++++++++++++++',result)
                 if result['code'] == 'NACK':
+                    print(result['data'])
                     continue
                 self.updatePaymentFlag(erpPaymentId, '2')
-                #print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$回写每刻支付状态成功！')
 
     #post已导出状态给每刻
     def postExportstatus(self, timeStamp, header):
 
-        postMaycurUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/update'
+        postMaycurUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/update'
         #获取每刻回写到CBS的流水数据
         cbsData = self.getUnlabel()
         print(cbsData)
@@ -319,68 +336,83 @@ class Maycur():
 
     #获取带code、tokenid的header
     def getHeader(self, timeStamp):
-        accessTokenUrl = 'https://uat.maycur.com/api/openapi/auth/login'
-        #PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
-        appCode = 'UI180315SUNO100'
-        secret = 'Lqecp6GGSajUxnNTMEeA966bxVXym6UzjTp26zccMMRBgBrAX4m4s9anpfuJkVkz'
+        accessTokenUrl = 'https://www.maycur.com/api/openapi/auth/login'
+        #PaymentUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/list'
+        appCode = 'UI180510Z0KSLOYSA'
+        secret = '7TLzEHwtQWnKJvF8R9QCNFaZ4MeMaXkTgoAK4XygFkLZuuouuq9DCKPt4ywbUDxw'
         #加密
         res = self.getSh256(secret + ':' + appCode + ':' + timeStamp)
         auth = {'appCode': appCode,'timestamp': timeStamp, 'secret': res}
         header = {'content-type':'application/json'}
         accessToken = self.getAccessToken(accessTokenUrl, auth, header)
+        print(accessToken)
         if (accessToken['code'] == 'ACK'):
             data = accessToken.get('data')
             header['entCode'] = data.get('entCode')
             header['tokenId'] = data.get('tokenId')
+        else:
+            print("获取Token失败！！")
         return header
 
     #获取每刻已导出的支付流水到CBS中间表
-    def getAllPayment(self, timeStamp, header):
-        PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
+    def getAllPayment(self, timeStamp, header, accountCorpDict):
+        PaymentUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/list'
         data = {"timestamp": timeStamp, "data": {"sequence": -1}}
         result = self.getPayment(PaymentUrl, data, header)
+        print('result+++++++++++++++++++++++++++',result)
         if (result['code'] == 'ACK'):
 
             paymentData = result.get('data')
-            print(paymentData)
+            #print('paymentData++++++++++++++++++++++++++++++++++++++++',paymentData)
             paymentList = []
             for i in range(0, len(paymentData)):
                 dict = paymentData[i]
-                sequence = dict['sequence']
-                newPayment = self.checkNewPayment(sequence)
-                failedPaymentExist = self.checkFailedPaymentExist(sequence) 
+                sequence = dict['sequence']                                                          #流水号
+                subSidiaryBizCode = dict['subsidiaryBizCode']                                        #公司编码
+                newPayment = self.checkNewPayment(sequence)                                          #是否新标识
+                failedPaymentExist = self.checkFailedPaymentExist(sequence)                          #是否支付失败标识
                 if not newPayment and not failedPaymentExist:
                     continue
-                erpPaymentId = str(sequence)+timeStamp
+                erpPaymentId = str(sequence)+timeStamp                                               #CBS唯一编码
                 #print(erp_payment_id)
-                payeeBankCode = dict['payeeBankCode']
-                payeeBankCardNO = dict['payeeBankCardNO']
-                paidAmount = dict['paidAmount']
+                payeeBankCode = dict['payeeBankCode'].upper()                                        #收款方银行类型
+                payeeBankCode = payeeBankCode[0:3]                                                   #保留前3位
+                payeeBankCardNO = dict['payeeBankCardNO']                                            #收款方银行账号
+                #payeeBankCardNO = payeeBankCardNO.upper()
+                #print(payeeBankCode)
+                paidAmount = dict['paidAmount']                                                      #金额
                 Amount = [str(paidAmount),int(paidAmount)][int(paidAmount)==paidAmount]
-                payerBankAccount = dict['payerBankAccount']
+                payerBankAccount = accountCorpDict[subSidiaryBizCode]                                          #公司支付账号
                 #payerBankAccount = '19082301040025838'
-                payeeBankBranchNO = dict['payeeBankBranchNO']
-                payeeName = dict['payeeName']
-                acceptCcy = dict['acceptCcy']
+                #payerBankAccount = '082301040004015'
+                payeeBankBranchNO = dict['payeeBankBranchNO']                                        #收款人银行联行号
+                payeeName = dict['payeeName']                                                        #收款人
+                acceptCcy = dict['acceptCcy']                                                        #收款币种
                 acceptCcy = self.currency(acceptCcy)
-                payeeTargetBizCode = dict['payeeTargetBizCode']
-                payeeBankBranchName = dict['payeeBankBranchName']
-                paymentStatus = dict['paymentStatus']
-                #print(paymentStatus)
+                payeeTargetBizCode = dict['payeeTargetBizCode']                                      #每刻报销--单据编号
+                payeeBankBranchName = dict['payeeBankBranchName']                                    #开户行地址
+                paymentStatus = dict['paymentStatus']                                                #状态
+                payeeBankProvince = dict['payeeBankProvince']    #省
+                payeeBankLocation = dict['payeeBankLocation']    #市
+                #PaymentAccounts = '1111111111'    #付款方银行账号
+                #print(paymentStatus)str.upper()
                 if paymentStatus == 18 or paymentStatus == 66 :
                     flag = 1
                 else:
                     flag = 0
-                payeeTarget = dict['payeeTarget']
+                payeeTarget = dict['payeeTarget']                                                    #被支付方类型
                 #获取单据事由
                 reason = self.getReason(payeeTargetBizCode,header,payeeTarget)
+                #获取公司编码
+
+                paymentCltnbr = self.companyId(subSidiaryBizCode)
                 if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
                     continue
                 checkCode = self.getCheckCode(erpPaymentId, 'Available', payeeBankCardNO, Amount, payerBankAccount)
-                list = (erpPaymentId, 'Available', '401', '2', payeeBankCardNO, payeeBankCode, paidAmount, reason, 0, checkCode, payerBankAccount, payeeName, '5500', acceptCcy, payeeBankBranchNO, flag, sequence, payeeTargetBizCode, payeeBankBranchName)
+                list = (erpPaymentId, 'Available', '202', '2', payeeBankCardNO, payeeBankCode, paidAmount, reason, 0, checkCode, payerBankAccount, payeeName, '', acceptCcy, payeeBankBranchNO, flag, sequence, payeeTargetBizCode, payeeBankBranchName,payeeBankProvince,payeeBankLocation,'1','N','3')
                 paymentList.append(list)
             print(paymentList)
-            insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19)"
+            insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name,deposit_province,deposit_city,city_flag,priority_flag,operation_type)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19,:20,:21,:22,:23,:24)"
             self.cxoracle.insert(insertSql, paymentList)
             print("######################################################")
             #回写已导出状态给每刻
@@ -388,6 +420,7 @@ class Maycur():
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         else:
             print("请求失败")
+            self.utils.postEmail('系统提醒', '获取每刻已导出的支付流水失败！', 'chendong@sunon-china.com')
             print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
     def getAccessToken(self, url, post, header):
@@ -426,7 +459,7 @@ class Maycur():
 
     #获取CBS状态为1的支付流水
     def getLabeled(self):
-        sql = "select  erp_payment_id,record_status,payment_accounts,cbs_last_update_time,cbs_comment,erp_comment2  from (select t.*,row_number() over(partition by t.erp_comment2 order by t.cbs_last_update_time desc) rn from authorization_to_payment t) c where rn = 1 and record_status  in ('Failed','Success') and erp_comment1='1' "
+        sql = "select  erp_payment_id,record_status,payment_accounts,cbs_last_update_time,cbs_comment,erp_comment2,deposit_bank_type, erp_comment3 from authorization_to_payment a where cbs_last_update_time=(select max(cbs_last_update_time) from authorization_to_payment b where b.erp_comment3=a.erp_comment3  ) and record_status  in ('Failed','Success') and erp_comment1='1' "
         result = self.cxoracle.query(sql)
         return result
 
@@ -457,6 +490,19 @@ class Maycur():
             #'c': 3,
         }.get(acceptCcy, 'error') 
 
+    #CBS公司编码转换
+    def companyId(self,subSidiaryBizCode):
+        return {
+            'SA':'0000',
+            'XS':'0001',
+            'PC':'0012',
+            'HN':'0003',
+            'SK':'0004',
+            'ZY':'0010',
+            'AC':'0011',
+            'OY':'0005',
+        }.get(subSidiaryBizCode,'error')
+
     #更新CBS中间表erp_comment1标识     '1'表示已导出或导出失败  标识'2'表示支付成功或失败
     def updatePaymentFlag(self, erpPaymentId, type):
         if type == '1':  
@@ -472,13 +518,13 @@ class Maycur():
 
         #获取对私报销事由的url
         if payeeTarget == 'PERSONAL' :
-            url = 'https://uat.maycur.com/api/openapi/report/personal/detail?businessCode='+businessCode
+            url = 'https://www.maycur.com/api/openapi/report/personal/detail?businessCode='+businessCode
         #获取对公报销事由的url
         if payeeTarget == 'CORP' :
-            url = 'https://uat.maycur.com/api/openapi/report/corp/detail?businessCode='+businessCode
+            url = 'https://www.maycur.com/api/openapi/report/corp/detail?businessCode='+businessCode
         #获取消费申请事由的url
         if payeeTarget == 'EXPENSE' :
-            url = 'https://uat.maycur.com/api/openapi/report/consume/detail?businessCode='+businessCode
+            url = 'https://www.maycur.com/api/openapi/report/consume/detail?businessCode='+businessCode
 
         entCode = header['entCode'] 
         tokenId = header['tokenId'] 
@@ -492,11 +538,26 @@ class Maycur():
         reason = data['name']
         return reason
 
+    #获取每刻支付账号列表
+    def getCompanyPayAccount(self, header):
+        getMaycurUrl = 'https://www.maycur.com/api/openapi/account/corp/list'
+        result = self.postPayment(getMaycurUrl, '', header)
+        if (result['code'] == 'ACK'):
+            accountCorpDict = {}  #创建一个空的DICT
+            data = result['data']
+            for i in range(0, len(data)):
+                accountCorpList = data[i]
+                subsidiaryBizCode = accountCorpList['subsidiaryBizCode']
+                account = accountCorpList['account']
+                accountCorpDict[subsidiaryBizCode] = account    #公司账号填入DICT
+                #accountCorpDict1.append(accountCorpDict) 
+        return accountCorpDict
+
 
 '''
     #获取支付失败的流水更新CBS中间表
     def getPaymentfailed(self,timeStamp,header):
-        PaymentUrl = 'https://uat.maycur.com/api/openapi/paymenttransaction/list'
+        PaymentUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/list'
         #header = self.getHeader(timeStamp)
         #sql = " SELECT erp_payment_id FROM AUTHORIZATION_TO_PAYMENT   WHERE  RECORD_STATUS = 'Failed' and  erp_payment_id  not like '%\_' escape '\' "
         #sql = " SELECT erp_payment_id FROM AUTHORIZATION_TO_PAYMENT   WHERE  RECORD_STATUS = 'Failed' and  erp_payment_id  not like '%\_%' escape nchr(92) "
@@ -577,7 +638,7 @@ class Utils():
     def postEmail(self, title, content, addressee):
         from django.core.mail import send_mail
         from django.conf import settings
-        res = send_mail(title, content, 'oa@sunon-china.com', [addressee], fail_silently=False)
+        res = send_mail(title, content, 'noreply.bi@sunon-china.com ', [addressee], fail_silently=False)
         return res
 
 import cx_Oracle
@@ -647,11 +708,10 @@ class CxOracle():
 def pxb():
     pxb = Pxb()
     pxb.main()
-'''
+
 def maycur():
     maycur = Maycur()
     maycur.main()
-'''
 
-
+maycur()
 
