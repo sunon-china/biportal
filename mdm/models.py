@@ -14,6 +14,7 @@ class Company(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField(default=django.utils.timezone.now)
+    erp_code = models.CharField(max_length=20,blank=True, null=True)
     parent_company_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_company_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name 
