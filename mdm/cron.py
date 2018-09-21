@@ -12,9 +12,13 @@ ChangeLog
 2018/07/10 Feng ZHAO Synchronize root company 
 2018/07/11 Feng ZHAO Synchronize organizations
 2018/07/12 Feng ZHAO Synchronize students 
+<<<<<<< HEAD
 2018/07/18 Dong CHEN add class Maycur class CxOracle
 2018/10/16.Dong Chen add CBS支付方式变更为202,
 2018/10/18.Dong Chen add 获取每刻中的公司支付账号
+=======
+2018/07/18 Dong CHEN add class Maycur
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
 '''
 
 class Pxb():
@@ -43,7 +47,6 @@ class Pxb():
         auth = {'appId': 'hHvKkSxRt113b690', 'appSecret': '9E1D83DDC64A55020068AEA3F894621A5EA424DB'}
         header = {'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'}
 
-
         accessToken = self.getAccessToken(accessTokenUrl, auth, header)
         if (accessToken['err'] == 0):
             header['ACCESS-TOKEN'] = accessToken['data']
@@ -63,7 +66,8 @@ class Pxb():
             #Synchronize organization
             departments = self.getDepartments()
             #删除组织信息
-            #self.postDeleteOrganization(departments, header)
+            #detailReturn = self.postDeleteOrganization(departments, header)
+            #print('departments',departments)
             #同步组织
             organizations = []
             for d in departments:
@@ -78,8 +82,9 @@ class Pxb():
                     'organization_name': d['name'],
                     'parent_code': parentCode
                 })
-            print(organizations)
+            #print(organizations)
             updateReturn = self.synchronizeOrganizations(synchronizeOrganizationsUrl, organizations, header)
+          
             if (updateReturn['err'] == 0):
                print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
             else:
@@ -87,10 +92,12 @@ class Pxb():
                 self.utils.postEmail('系统提醒', '培训宝组织信息同步失败！', 'chendong@sunon-china.com')
             
             #Synchronize student 
+
             employees = self.getEmployees()
-            #删除人员信息
+
+#删除人员信息
             #self.postDeleteEmployee(employees, header)
-            #同步人员信息
+#同步人员信息
             self.postUpdateEmployee(employees, header)
         #Get access token error
         else:
@@ -120,6 +127,7 @@ class Pxb():
         
         count = 1
         employeeList = []
+        #print('+++++employees++++',employees)
             
         for i in range(0, len(employees)) :
             count += 1
@@ -136,25 +144,26 @@ class Pxb():
             #print(organizationCodeList)
             list = ({"code": key, "chinese_name": name, "employee_id": employeeId, "department": department, "position": position, "gender": sex, "mobile": mobilePhone, "default_code": defaultCode, "organization_codes": organizationCodeList })
             employeeList.append(list)
-            
+            #print(count)
             if count == 1000 :
-                print(employeeList)
+                #print('同步一次',employeeList)
                 updateReturn = self.synchronizeOrganizations(url, employeeList, header)
                 if (updateReturn['err'] == 0):
                     print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
                 else:
                     print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-                    self.utils.postEmail('系统提醒', '培训宝人员信息同步失败！', 'chendong@sunon-china.com')
+                    #self.utils.postEmail('系统提醒', '培训宝人员信息同步失败！', 'chendong@sunon-china.com')
                 count = 1
                 list = ()
                 employeeList = []
-        print('postUpdateEmployee++++', employeeList)
+                print('+++++++++++++',list,'++++++++++++++',employeeList)
+        print('postUpdateEmployee++++', count)
         updateReturn = self.synchronizeOrganizations(url, employeeList, header)
         if (updateReturn['err'] == 0):
-            print(str(updateReturn['err']) + ' ' +str(updateReturn['data']))
+            print(str(updateReturn['err']) + ' ok ' +str(updateReturn['data']))
         else:
             print(str(updateReturn['err']) + ' ' + updateReturn['data'])
-            self.utils.postEmail('系统提醒', '培训宝人员信息同步失败！', 'chendong@sunon-china.com')
+            #self.utils.postEmail('系统提醒', '培训宝人员信息同步失败！', 'chendong@sunon-china.com')
 
     #删除pxb人员信息
     def postDeleteEmployee(self, employees, header): 
@@ -206,7 +215,7 @@ class Pxb():
 
     def getDepartments(self):
         departments = self.department.objects.filter(status = 2, effective_flag = 0).values('code', 'name', 'parent_dept_key__code')
-        #print(departments.query)
+        print(departments.query)
         return departments
 
     def synchronizeOrganizations(self, url, post, header):
@@ -215,7 +224,11 @@ class Pxb():
     def getEmployees(self):
         from django.db import connection
         cursor = connection.cursor()
+<<<<<<< HEAD
         sql = "select mdm_employee.key, mdm_employee.name, mdm_employee.code, mdm_department.name, mdm_position.name, mdm_employee.sex, mdm_employee.mobile, mdm_department.code as default_code, mdm_department.code organization_codes from mdm_job_data a left join mdm_employee on a.empl_key = mdm_employee.key left join mdm_department on a.dept_key = mdm_department.key left join mdm_position on a.pos_key = mdm_position.key where a.effective_flag = 0 and mdm_employee.effective_flag = 0  and mdm_department.effective_flag = 0 and mdm_position.effective_flag = 0  and a.start_date = (select max(start_date) from mdm_job_data b where b.empl_key=a.empl_key) order by mdm_employee.id asc"
+=======
+        sql = "select mdm_employee.key, mdm_employee.name, mdm_employee.code, mdm_department.name, mdm_position.name, mdm_employee.sex, mdm_employee.mobile, mdm_department.code as default_code, mdm_department.code organization_codes from mdm_job_data a left join mdm_employee on a.empl_key = mdm_employee.key left join mdm_department on a.dept_key = mdm_department.key left join mdm_position on a.pos_key = mdm_position.key where a.effective_flag = 0 and mdm_employee.effective_flag = 0  and mdm_department.effective_flag = 0 and mdm_position.effective_flag = 0  and a.start_date = (select max(start_date) from mdm_job_data b where b.empl_key=a.empl_key) and  empl_status_key='1001A910000000000C1H'  order by mdm_employee.code asc"
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
         cursor.execute(sql)
         row = cursor.fetchall()
         #print(row)
@@ -240,11 +253,16 @@ class Maycur():
 
     def __init__(self):
         self.utils = Utils()
+<<<<<<< HEAD
         #CBS测试地址
         #self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.182', 1521, 'sunon')
         #CBS正式地址
         self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.139', 1521, 'cbsdb')
 
+=======
+        self.cxoracle = CxOracle('cbs', 'sunon$2018', '172.16.59.182', 1521, 'orcl')
+        
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
     def main(self):
         import time
         timeStamp = str(int(time.time()*1000))
@@ -261,7 +279,11 @@ class Maycur():
         postMaycurUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/update'
    
         cbsData = self.getLabeled()
+<<<<<<< HEAD
         print('回写每刻支付成功或支付失败状态cbsData++++++++++++++++++++++++++++++++++++++++++++++++',cbsData)
+=======
+        print('postPaymentstatus', cbsData)
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
 
         if cbsData == [] :
             print("postPaymentstatus:暂无数据需要回写每刻")
@@ -275,9 +297,14 @@ class Maycur():
                 #    continue
                 PayDate = cbsData[i][3]
                 errorMsg = cbsData[i][4]
+<<<<<<< HEAD
                 #print('错误提醒+++++++++++',errorMsg)
                 #if errorMsg != None:
                 #    errorMsg = self.utils.json(errorMsg, 'decode')
+=======
+                #if errorMsg != None:
+                #    errorMsg = self.utils.json(errorMsg, 'decode') 
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
                 sequence = cbsData[i][5]
                 erpPaymentId = cbsData[i][0]
                 depositBankType = cbsData[i][6]
@@ -303,8 +330,12 @@ class Maycur():
                 data = {"timeStamp": nowtimeStamp, "data": dataList}
                 print('data++++++++++++++++++++++++++++++++++++++++++++++++++',data)
                 result = self.postPayment(postMaycurUrl, data, header)
+<<<<<<< HEAD
                 #print('result++++++++++++',result)
                 #print('result+++++++++++++++++++++++++++++++++++++++++++++++++++++',result)
+=======
+                print('result', result)
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
                 if result['code'] == 'NACK':
                     print(result['data'])
                     continue
@@ -317,7 +348,7 @@ class Maycur():
         postMaycurUrl = 'https://www.maycur.com/api/openapi/paymenttransaction/update'
         #获取每刻回写到CBS的流水数据
         cbsData = self.getUnlabel()
-        print(cbsData)
+        print('postExportstatus-cbsdata',cbsData)
         dataList = []
         if cbsData == []:
             print("postExportstatus:CBS无新增数据")
@@ -329,9 +360,9 @@ class Maycur():
                 dataList.append(list)
                 self.updatePaymentFlag(erp_payment_id, '1')
             data = {"timestamp": timeStamp, "data": dataList}
-            print(data)
+            print('postExportstatus-data', data)
             result = self.postPayment(postMaycurUrl, data, header)
-            print(result)
+            print('postExportstatus-result', result)
 
 
     #获取带code、tokenid的header
@@ -345,7 +376,11 @@ class Maycur():
         auth = {'appCode': appCode,'timestamp': timeStamp, 'secret': res}
         header = {'content-type':'application/json'}
         accessToken = self.getAccessToken(accessTokenUrl, auth, header)
+<<<<<<< HEAD
         print(accessToken)
+=======
+        #print(accessToken)
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
         if (accessToken['code'] == 'ACK'):
             data = accessToken.get('data')
             header['entCode'] = data.get('entCode')
@@ -363,7 +398,11 @@ class Maycur():
         if (result['code'] == 'ACK'):
 
             paymentData = result.get('data')
+<<<<<<< HEAD
             #print('paymentData++++++++++++++++++++++++++++++++++++++++',paymentData)
+=======
+            print('getAllPayment-paymentData', paymentData)
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
             paymentList = []
             for i in range(0, len(paymentData)):
                 dict = paymentData[i]
@@ -404,6 +443,7 @@ class Maycur():
                 #获取单据事由
                 reason = self.getReason(payeeTargetBizCode,header,payeeTarget)
                 #获取公司编码
+<<<<<<< HEAD
 
                 paymentCltnbr = self.companyId(subSidiaryBizCode)
                 if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
@@ -413,6 +453,18 @@ class Maycur():
                 paymentList.append(list)
             print(paymentList)
             insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name,deposit_province,deposit_city,city_flag,priority_flag,operation_type)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19,:20,:21,:22,:23,:24)"
+=======
+                subSidiaryBizCode = dict['subsidiaryBizCode']
+                paymentCltnbr = self.companyId(subSidiaryBizCode)
+                
+                if payeeBankCode == None or payeeBankCardNO == None or Amount == 0:
+                    continue
+                checkCode = self.getCheckCode(erpPaymentId, 'Available', payeeBankCardNO, Amount, payerBankAccount)
+                list = (erpPaymentId, 'Available', '401', '2', payeeBankCardNO, payeeBankCode, paidAmount, reason, 0, checkCode, payerBankAccount, payeeName, paymentCltnbr, acceptCcy, payeeBankBranchNO, flag, sequence, payeeTargetBizCode, payeeBankBranchName)
+                paymentList.append(list)
+            print('paymentList', paymentList)
+            insertSql = "insert into authorization_to_payment(erp_payment_id, record_status,payment_type_id,payment_method_type_id,deposit_accounts,deposit_bank_type,amount,purpose,version,check_code,payment_accounts,deposit_accounts_name,payment_cltnbr,currency_type,union_bank_number,erp_comment1,erp_comment2,erp_comment3,deposit_bank_name)VALUES(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12,:13,:14,:15,:16,:17,:18,:19)"
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
             self.cxoracle.insert(insertSql, paymentList)
             print("######################################################")
             #回写已导出状态给每刻
@@ -533,7 +585,7 @@ class Maycur():
         request.add_header('tokenId', tokenId)
         result = urllib.request.urlopen(request).read()
         result = self.utils.json(result, 'decode')
-        print(result)
+        print('getReason', result)
         data = result['data'][0]
         reason = data['name']
         return reason
@@ -638,7 +690,11 @@ class Utils():
     def postEmail(self, title, content, addressee):
         from django.core.mail import send_mail
         from django.conf import settings
+<<<<<<< HEAD
         res = send_mail(title, content, 'noreply.bi@sunon-china.com ', [addressee], fail_silently=False)
+=======
+        res = send_mail(title, content, 'noreply.bi@sunon-china.com', [addressee], fail_silently=False)
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
         return res
 
 import cx_Oracle
@@ -694,7 +750,7 @@ class CxOracle():
         return rt 
     #批量插入
     def insert(self, sql, param):
-        print(param)
+        #print(param)
         rt = None
         cur = self._newCursor()
         if not cur:
@@ -712,6 +768,11 @@ def pxb():
 def maycur():
     maycur = Maycur()
     maycur.main()
+<<<<<<< HEAD
 
 maycur()
+=======
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
 
+maycur()
+'''

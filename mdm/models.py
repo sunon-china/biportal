@@ -14,6 +14,7 @@ class Company(models.Model):
     created_job = models.CharField(max_length=100, blank=True, null=True)
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField(default=django.utils.timezone.now)
+    erp_code = models.CharField(max_length=20,blank=True, null=True)
     parent_company_key = models.ForeignKey('self', on_delete=models.CASCADE, default = '', db_column = 'parent_company_key', blank=True, null = True, to_field = 'key')
     def __str__(self):
         return self.name 
@@ -162,6 +163,15 @@ class Job_Data(models.Model):
     created_tr = models.CharField(max_length=100, blank=True, null=True)
     created_date = models.DateField()
     is_main_job = models.CharField(max_length=20, default='Y')
+<<<<<<< HEAD
+=======
+    workplace_1 = models.CharField(max_length=200,blank=True, null=True)
+    workplace_2 = models.CharField(max_length=200,blank=True, null=True)
+    workplace_3 = models.CharField(max_length=200,blank=True, null=True)
+    workplace_4 = models.CharField(max_length=200,blank=True, null=True)
+    workplace_5 = models.CharField(max_length=200,blank=True, null=True)
+
+>>>>>>> a5296a69b2bdebce27493a213ff17f720096c026
     empl_key = models.ForeignKey('Employee', on_delete=models.CASCADE, default = '', db_column = 'empl_key', to_field = 'key', related_name = 'empl')
     dept_key = models.ForeignKey('Department', on_delete=models.CASCADE, default = '', db_column = 'dept_key', to_field = 'key', related_name = 'dept')
     pos_key = models.ForeignKey('Position', on_delete=models.CASCADE, default = '', db_column = 'pos_key', to_field = 'key', related_name = 'pos')
